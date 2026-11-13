@@ -340,4 +340,4 @@ Bus log line for msg-3:
 does the work, when the organizer gets their money, and what has to be true for
 it to be safe.
 
-Triage instead would have cost a person's time: someone on call has to read the dead letter (message id, subscriber, reason, payload), check the provider for a settlement on bk-1001, and only then retry. The organizer stays unpaid until they get to it. It's safe without relying on the handler being idempotent, because the human confirms first that the money didn't move. Redelivery, by contrast, is only safe because of the Milestone 2 fix and because the provider really didn't pay.
+Triage would have put the work on a person on call, who checks the provider for a settlement on bk-1001 before retrying; the organizer waits until then, but it’s safe even without an idempotent handler because a human confirms the money didn’t move.
