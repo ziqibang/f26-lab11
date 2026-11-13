@@ -275,9 +275,36 @@ All three states are identical: 1 ledger entry (led-1), 1 gateway call, 1 settle
 **The run.** Run `npm run demo:failure` and paste what the delivery left
 behind (the ledger, the provider, and the dead-letter list).
 
+```
+armed: call 1 to the payment provider will throw
+booked bk-1001 for 8500 cents
+cancelled bk-1001, refund 8500 cents, refund message msg-3
+the cancel call itself returned: booking is cancelled
+
+=== after the failed delivery ===
+ledger entries: 1
+  led-1 bk-1001 $85.00 (cancelled more than two hours ahead)
+gateway calls: 1
+gateway settlements: 0
+money returned in total: $0.00
+dead letters: 1
+  msg-3 refund.requested attempt 1 in RefundLedger: payment provider did not answer on call 1 for bk-1001
+    failedAtMinute: 480
+    payload: {"bookingId":"bk-1001","organizer":"H. Ahmad","organizerEmail":"hahmad@example.edu","amountCents":8500,"reason":"cancelled more than two hours ahead","requestedAtMinute":480}
+
+=== bus log ===
+  msg-1 booking.confirmed deliveries=1
+  msg-2 booking.cancelled deliveries=1
+  msg-3 refund.requested deliveries=1
+
+the refund message is in the log and in the dead-letter list. Milestone 3 asks what you do with it.
+```
+
 ### Your recovery
 
 **What, if anything, the failed delivery left undone.**
+
+The ledger entry led-1 ($85.00 for bk-1001) was written, but the gateway call threw, so no money moved: 0 settlements and $0.00 returned. The ledger now claims a refund the organizer never got, and since the bus doesn't retry, msg-3 sits on the dead-letter list with deliveries=1.
 
 **The option you took and its evidence.** If you redelivered the
 message, paste the state after the redelivery and the bus log line for that
@@ -285,8 +312,32 @@ message. If you left the message for a person to handle, write the runbook line
 they would follow, and name which fields of the dead-lettered message they read to
 follow it and what each one tells them.
 
+State after redelivering msg-3:
+
+```
+=== after redelivering the refund message ===
+ledger entries: 1
+  led-1 bk-1001 $85.00 (cancelled more than two hours ahead)
+gateway calls: 2
+gateway settlements: 1
+  stl-1 bk-1001 $85.00
+money returned in total: $85.00
+dead letters: 1
+  msg-3 refund.requested attempt 1 in RefundLedger: payment provider did not answer on call 1 for bk-1001
+    failedAtMinute: 480
+    payload: {"bookingId":"bk-1001","organizer":"H. Ahmad","organizerEmail":"hahmad@example.edu","amountCents":8500,"reason":"cancelled more than two hours ahead","requestedAtMinute":480}
+```
+
+Bus log line for msg-3:
+
+```
+  msg-3 refund.requested deliveries=2
+```
+
 ### The other option
 
 **What the option you did not take would have cost.** One line, in terms of who
 does the work, when the organizer gets their money, and what has to be true for
 it to be safe.
+
+Triage instead would have cost a person's time: someone on call has to read the dead letter (message id, subscriber, reason, payload), check the provider for a settlement on bk-1001, and only then retry. The organizer stays unpaid until they get to it. It's safe without relying on the handler being idempotent, because the human confirms first that the money didn't move. Redelivery, by contrast, is only safe because of the Milestone 2 fix and because the provider really didn't pay.

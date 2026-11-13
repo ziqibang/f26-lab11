@@ -34,6 +34,17 @@ function main(): void {
     '\nthe refund message is in the log and in the dead-letter list. ' +
       'Milestone 3 asks what you do with it.',
   );
+
+  const messageId = cancellation.refundMessageId;
+  if (messageId === undefined) {
+    throw new Error('this cancellation owed no refund, so there is no message to replay');
+  }
+
+  console.log(`\nredelivering ${messageId}`);
+  app.bus.redeliver(messageId);
+
+  printRefundState(app, 'after redelivering the refund message');
+  printMessageLog(app);
 }
 
 main();

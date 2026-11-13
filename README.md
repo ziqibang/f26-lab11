@@ -67,3 +67,5 @@ paste into `EVENTS.md`. Both print the same output on every run.
 
 See the Lab 11 handout on the course page for the three milestones you show a
 TA.
+
+AI use: Claude Code (Claude Opus 5.5) was used to read the code, run the demos, and write the refund handler fix and demo change; Claude (Claude Opus 5.5) helped with planning and wording.
