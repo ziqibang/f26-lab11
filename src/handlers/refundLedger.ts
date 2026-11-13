@@ -25,6 +25,12 @@ export class RefundLedger implements Subscriber<RefundRequested> {
 
   private readonly entries: LedgerEntry[] = [];
   private readonly gateway: PaymentGateway;
+  /**
+   * Progress per refund message id: present once the ledger entry is written,
+   * `true` once the provider has settled. Lets a redelivery skip finished work
+   * and finish a refund whose provider call threw.
+   */
+  private readonly settledByMessage = new Map<string, boolean>();
 
   constructor(gateway: PaymentGateway) {
     this.gateway = gateway;
@@ -32,15 +38,23 @@ export class RefundLedger implements Subscriber<RefundRequested> {
 
   handle(message: Message<RefundRequested>): void {
     const event = message.payload;
-    this.entries.push({
-      entryId: `led-${this.entries.length + 1}`,
-      bookingId: event.bookingId,
-      organizer: event.organizer,
-      amountCents: event.amountCents,
-      reason: event.reason,
-      recordedAtMinute: message.publishedAtMinute,
-    });
+    const settled = this.settledByMessage.get(message.id);
+    if (settled === true) {
+      return;
+    }
+    if (settled === undefined) {
+      this.entries.push({
+        entryId: `led-${this.entries.length + 1}`,
+        bookingId: event.bookingId,
+        organizer: event.organizer,
+        amountCents: event.amountCents,
+        reason: event.reason,
+        recordedAtMinute: message.publishedAtMinute,
+      });
+      this.settledByMessage.set(message.id, false);
+    }
     this.gateway.refund(event.bookingId, event.amountCents);
+    this.settledByMessage.set(message.id, true);
   }
 
   /** Every ledger entry, oldest first. */
